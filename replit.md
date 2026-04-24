@@ -11,6 +11,17 @@ Full-stack production-ready pharmacy management system for retail pharmacies in 
 - Backend: Express 5, Drizzle ORM, PostgreSQL (Replit DB), zod validation, custom cookie session auth (scrypt)
 - API contract: `lib/api-spec/openapi.yaml` → orval-generated client + zod schemas
 
+## Installable PWA (Desktop + Mobile)
+MediStock ships as an installable Progressive Web App. After visiting the published URL in Chrome/Edge, the **Install App** button in the top bar (or the browser's address-bar install icon) installs it as a standalone desktop application — its own window, dock/taskbar icon, and full offline capability. On Android it installs to the home screen; on iOS users use Safari → Share → Add to Home Screen.
+
+PWA stack:
+- `vite-plugin-pwa` with `generateSW` strategy (Workbox)
+- Web app manifest at `manifest.webmanifest` (theme `#1F7368`, standalone display)
+- Icons: 192/512 PNG + maskable 512 + 180 apple-touch
+- Service worker precaches the app shell (HTML/CSS/JS/fonts) and uses **NetworkFirst** for `/api/products`, `/api/categories`, `/api/suppliers`, `/api/branches`, `/api/dashboard` so cached data is shown when offline
+- `InstallButton` component listens for `beforeinstallprompt` and shows "Installed" once the app is in standalone mode
+- Posted sales already queue to localStorage when offline and drain on `online` event
+
 ## Features
 - Cookie-based role auth (`cashier` / `manager` / `admin`); session table in Postgres
 - Dashboard with KPIs, sales trend chart, top products, low-stock & expiring alerts

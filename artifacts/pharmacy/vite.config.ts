@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { VitePWA } from "vite-plugin-pwa";
 
 const rawPort = process.env.PORT;
 
@@ -32,6 +33,79 @@ export default defineConfig({
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
+    VitePWA({
+      registerType: "autoUpdate",
+      injectRegister: "auto",
+      base: basePath,
+      scope: basePath,
+      includeAssets: ["favicon.svg", "apple-touch-icon.png"],
+      manifest: {
+        name: "MediStock — Pharmacy Manager",
+        short_name: "MediStock",
+        description:
+          "Offline-capable pharmacy point-of-sale and inventory system for Ghanaian retail pharmacies.",
+        theme_color: "#1F7368",
+        background_color: "#FBF7F0",
+        display: "standalone",
+        orientation: "any",
+        lang: "en-GH",
+        start_url: basePath,
+        scope: basePath,
+        id: "medistock-pharmacy",
+        categories: ["business", "medical", "productivity"],
+        icons: [
+          { src: "pwa-192.png", sizes: "192x192", type: "image/png" },
+          { src: "pwa-512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "pwa-maskable-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        navigateFallback: `${basePath}index.html`,
+        navigateFallbackDenylist: [/^\/api/],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith("/api/") &&
+              ["/api/products", "/api/categories", "/api/suppliers", "/api/branches", "/api/dashboard"].some(
+                (p) => url.pathname.startsWith(p),
+              ),
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "medistock-api",
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: ({ url }) => url.origin === "https://fonts.googleapis.com",
+            handler: "StaleWhileRevalidate",
+            options: { cacheName: "google-fonts-stylesheets" },
+          },
+          {
+            urlPattern: ({ url }) => url.origin === "https://fonts.gstatic.com",
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-webfonts",
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
+      devOptions: {
+        enabled: false,
+      },
+    }),
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [

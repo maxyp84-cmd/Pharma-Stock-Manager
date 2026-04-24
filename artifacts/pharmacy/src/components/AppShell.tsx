@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { InstallButton } from "./InstallButton";
 
 export function AppShell({ user, children }: { user: any; children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -62,6 +63,7 @@ export function AppShell({ user, children }: { user: any; children: React.ReactN
             {!isOnline && <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">Offline</span>}
           </div>
           <div className="flex items-center gap-4">
+            <InstallButton />
             <span>{user.fullName} ({user.role})</span>
             <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="h-4 w-4" /></Button>
           </div>
