@@ -1,0 +1,33 @@
+{
+  "name": "@workspace/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MediStock — Offline Desktop Pharmacy System",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev:server": "node --experimental-sqlite -e \"require('tsx/cjs'); require('./src/server-entry.ts')\"",
+    "dev": "NODE_OPTIONS=--experimental-sqlite electron .",
+    "build": "node build.mjs",
+    "make:linux": "electron-builder --linux AppImage deb",
+    "make:win": "electron-builder --win nsis",
+    "make:mac": "electron-builder --mac dmg",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2",
+    "electron-squirrel-startup": "^1.0.1",
+    "express": "^5"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.0.0",
+    "electron": "^35.1.2",
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.27.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5"
+  }
+}

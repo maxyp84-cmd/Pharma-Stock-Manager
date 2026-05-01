@@ -1,0 +1,48 @@
+{
+  appId: "com.medistock.pharmacy",
+  productName: "MediStock",
+  copyright: "Copyright © 2025 MediStock",
+  directories: {
+    output: "release",
+    buildResources: "build-assets"
+  },
+  files: [
+    "dist/**/*",
+    "node_modules/**/*",
+    "!node_modules/**/*.{md,ts,map}",
+    "!node_modules/.cache"
+  ],
+  extraResources: [
+    {
+      from: "frontend-dist",
+      to: "frontend",
+      filter: ["**/*"]
+    }
+  ],
+  win: {
+    target: [{ target: "nsis", arch: ["x64"] }],
+    icon: "build-assets/icon.ico"
+  },
+  nsis: {
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    installerIcon: "build-assets/icon.ico",
+    installerHeaderIcon: "build-assets/icon.ico",
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: "MediStock"
+  },
+  mac: {
+    target: [{ target: "dmg", arch: ["x64", "arm64"] }],
+    icon: "build-assets/icon.icns",
+    category: "public.app-category.business"
+  },
+  linux: {
+    target: [
+      { target: "AppImage", arch: ["x64"] },
+      { target: "deb", arch: ["x64"] }
+    ],
+    icon: "build-assets/icons",
+    category: "Office"
+  },
+}

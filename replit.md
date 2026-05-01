@@ -45,6 +45,34 @@ Then log in with:
 - `manager / manager123`
 - `cashier / cashier123`
 
+## Desktop App (Electron + SQLite)
+`artifacts/desktop/` is a standalone Electron app that runs 100% offline — no internet required.
+
+### Architecture
+- **Main process** (`src/main.ts`): Electron window + tray + menus. Forks the server process.
+- **Server process** (`src/server-entry.ts`): Forked with `--experimental-sqlite`. Runs Express + `node:sqlite`.
+- **SQLite layer** (`src/db.ts`): Uses built-in `node:sqlite` (Node.js 22.5+). No native compilation needed.
+- **Auth** (`src/auth.ts`): scrypt passwords + session tokens stored in SQLite.
+- **Server** (`src/server.ts`): All REST endpoints (auth, products, sales, dashboard, reports).
+- **Seed** (`src/seed.ts`): Auto-seeds demo data on first run.
+
+### Why `node:sqlite`?
+Avoids native compilation (`node-gyp`/Python) required by `better-sqlite3`. The `--experimental-sqlite` flag is passed automatically via `fork()` in the Electron main process.
+
+### Build & Package
+```bash
+cd artifacts/desktop
+node build.mjs          # Build frontend + bundle Electron files with esbuild
+electron-builder --win  # Package as NSIS installer (Windows)
+electron-builder --mac  # Package as DMG (macOS)
+electron-builder --linux # Package as AppImage + deb
+```
+
+### Demo users (auto-seeded on first run)
+- `admin / admin123` — full access
+- `manager / manager123` — inventory & reporting
+- `cashier / cashier123` — POS only
+
 ## Database
 Schema in `lib/db/src/schema/pharmacy.ts`. Push: `pnpm --filter @workspace/db run push`.
 
