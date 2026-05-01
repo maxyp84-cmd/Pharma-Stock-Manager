@@ -58,7 +58,7 @@ export default function POSPage() {
       setCustomerName("");
     } catch (e: any) {
       if (!navigator.onLine) {
-        queueSaleOffline({ ...payload, id: Date.now(), receiptNumber: 'OFFLINE-' + Date.now(), createdAt: new Date().toISOString() });
+        queueSaleOffline(payload);
         toast.success("Saved offline");
         setCart([]);
       } else {

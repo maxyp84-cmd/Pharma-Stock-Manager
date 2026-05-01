@@ -1,11 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useGetMe } from "@workspace/api-client-react";
+import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { drainOfflineQueue } from "@/lib/offline-queue";
+import {
+  getActiveOfflineUser,
+  setActiveOfflineUser,
+  clearActiveOfflineUser,
+  isNetworkError,
+  type OfflineProfile,
+} from "@/lib/offline-auth";
 
 import { AppShell } from "@/components/AppShell";
 import LoginPage from "@/pages/LoginPage";
@@ -22,20 +29,48 @@ import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: false } }
+  defaultOptions: { queries: { retry: false } },
 });
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { data: user, isLoading, error } = useGetMe();
+  const { data: serverUser, isLoading, error } = useGetMe();
+  const [offlineUser, setOfflineUser] = useState<OfflineProfile | null>(null);
   const [_, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isLoading && error) {
-      setLocation("/login");
-    }
-  }, [isLoading, error, setLocation]);
+    if (isLoading) return;
 
-  if (isLoading) return <div>Loading...</div>;
+    if (error) {
+      if (isNetworkError(error)) {
+        const cached = getActiveOfflineUser();
+        if (cached) {
+          setOfflineUser(cached);
+        } else {
+          setLocation("/login");
+        }
+      } else {
+        clearActiveOfflineUser();
+        setLocation("/login");
+      }
+    } else if (serverUser) {
+      setActiveOfflineUser(serverUser as OfflineProfile);
+      if (offlineUser) setOfflineUser(null);
+    }
+  }, [isLoading, error, serverUser]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      if (offlineUser) {
+        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      }
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [offlineUser]);
+
+  if (isLoading) return <div className="flex h-screen items-center justify-center text-muted-foreground">Loading…</div>;
+
+  const user = serverUser ?? offlineUser;
   if (!user) return null;
 
   return <AppShell user={user}>{children}</AppShell>;
@@ -71,7 +106,7 @@ function App() {
     const handleOnline = async () => {
       const count = await drainOfflineQueue();
       if (count > 0) {
-        toast.success(`Synced ${count} offline sales`);
+        toast.success(`Synced ${count} offline sale${count > 1 ? "s" : ""}`);
       }
     };
     window.addEventListener("online", handleOnline);

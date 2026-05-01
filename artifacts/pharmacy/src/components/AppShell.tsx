@@ -1,10 +1,11 @@
 import { Link, useLocation } from "wouter";
-import { LogOut } from "lucide-react";
+import { LogOut, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { InstallButton } from "./InstallButton";
+import { clearActiveOfflineUser } from "@/lib/offline-auth";
 
 export function AppShell({ user, children }: { user: any; children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
@@ -24,8 +25,12 @@ export function AppShell({ user, children }: { user: any; children: React.ReactN
   }, []);
 
   const handleLogout = async () => {
-    await logout.mutateAsync(undefined);
-    queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+    clearActiveOfflineUser();
+    try {
+      await logout.mutateAsync(undefined);
+    } catch {
+    }
+    queryClient.clear();
     setLocation("/login");
   };
 
@@ -45,32 +50,57 @@ export function AppShell({ user, children }: { user: any; children: React.ReactN
   return (
     <div className="flex h-screen w-full">
       <div className="w-64 bg-sidebar border-r flex flex-col">
-        <div className="p-4 border-b">
-          <h1 className="text-xl font-bold text-white">MediStock</h1>
+        <div className="p-4 border-b flex items-center gap-2">
+          <h1 className="text-xl font-bold text-white flex-1">MediStock</h1>
+          {!isOnline && (
+            <span title="Offline mode — using cached data">
+              <WifiOff className="h-4 w-4 text-amber-300" />
+            </span>
+          )}
         </div>
         <nav className="flex-1 p-4 space-y-2">
-          {navItems.filter(item => item.roles.includes(user.role)).map(item => (
-            <Link key={item.href} href={item.href} className={`block px-4 py-2 rounded ${location === item.href ? 'bg-primary text-white' : 'text-gray-300 hover:bg-gray-800'}`}>
-              {item.label}
-            </Link>
-          ))}
+          {navItems
+            .filter((item) => item.roles.includes(user.role))
+            .map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`block px-4 py-2 rounded ${
+                  location === item.href
+                    ? "bg-primary text-white"
+                    : "text-gray-300 hover:bg-gray-800"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
         </nav>
       </div>
+
       <div className="flex-1 flex flex-col">
         <header className="h-16 border-b flex items-center justify-between px-6 bg-white">
-          <div className="flex items-center gap-4">
-            <span className="font-semibold">{user.branchName || 'Main Branch'}</span>
-            {!isOnline && <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-bold">Offline</span>}
+          <div className="flex items-center gap-3">
+            <span className="font-semibold">{user.branchName || "Main Branch"}</span>
+            {!isOnline && (
+              <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+                <WifiOff className="h-3 w-3" />
+                Offline
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-4">
             <InstallButton />
-            <span>{user.fullName} ({user.role})</span>
-            <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="h-4 w-4" /></Button>
+            <span className="text-sm">
+              {user.fullName}{" "}
+              <span className="text-muted-foreground capitalize">({user.role})</span>
+            </span>
+            <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </header>
-        <main className="flex-1 overflow-auto p-6 bg-gray-50">
-          {children}
-        </main>
+
+        <main className="flex-1 overflow-auto p-6 bg-gray-50">{children}</main>
       </div>
     </div>
   );
