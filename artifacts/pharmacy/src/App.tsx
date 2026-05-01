@@ -26,6 +26,7 @@ import BranchesPage from "@/pages/BranchesPage";
 import UsersPage from "@/pages/UsersPage";
 import SalesPage from "@/pages/SalesPage";
 import SettingsPage from "@/pages/SettingsPage";
+import ClosingReportPage from "@/pages/ClosingReportPage";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -92,6 +93,7 @@ function Router() {
             <Route path="/branches" component={BranchesPage} />
             <Route path="/users" component={UsersPage} />
             <Route path="/sales" component={SalesPage} />
+            <Route path="/closing-report" component={ClosingReportPage} />
             <Route path="/settings" component={SettingsPage} />
             <Route component={NotFound} />
           </Switch>

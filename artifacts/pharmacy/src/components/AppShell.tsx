@@ -40,6 +40,7 @@ export function AppShell({ user, children }: { user: any; children: React.ReactN
     { href: "/products", label: "Products", roles: ["admin", "manager", "cashier"] },
     { href: "/inventory", label: "Inventory", roles: ["admin", "manager"] },
     { href: "/sales", label: "Sales", roles: ["admin", "manager", "cashier"] },
+    { href: "/closing-report", label: "Closing Report", roles: ["admin", "manager", "cashier"] },
     { href: "/suppliers", label: "Suppliers", roles: ["admin", "manager"] },
     { href: "/categories", label: "Categories", roles: ["admin", "manager"] },
     { href: "/branches", label: "Branches", roles: ["admin", "manager"] },
