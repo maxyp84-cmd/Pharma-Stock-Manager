@@ -1,5 +1,9 @@
 const QUEUE_KEY = "pending-sales";
 const PRODUCTS_KEY = "cached-products";
+const SALES_KEY = "cached-sales";
+const MOVEMENTS_KEY = "cached-stock-movements";
+const LOW_STOCK_KEY = "cached-low-stock";
+const EXPIRING_KEY = "cached-expiring";
 
 export interface OfflineSalePayload {
   items: { productId: number; quantity: number; unitPrice: number }[];
@@ -9,6 +13,8 @@ export interface OfflineSalePayload {
   amountPaid: number;
   customerName?: string | null;
 }
+
+// ── Pending sale queue ────────────────────────────────────────
 
 export function getOfflineSales(): OfflineSalePayload[] {
   try {
@@ -57,19 +63,67 @@ export async function drainOfflineQueue(): Promise<number> {
   return success;
 }
 
-export function cacheProducts(products: unknown[]) {
-  try {
-    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
-  } catch {
-    /* ignore */
-  }
+// ── Generic localStorage cache helpers ───────────────────────
+
+function saveCache<T>(key: string, data: T[]) {
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch { /* quota */ }
 }
 
-export function getCachedProducts<T = unknown>(): T[] {
+function loadCache<T>(key: string): T[] {
   try {
-    const raw = localStorage.getItem(PRODUCTS_KEY);
+    const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as T[]) : [];
   } catch {
     return [];
   }
+}
+
+// ── Products ──────────────────────────────────────────────────
+
+export function cacheProducts(products: unknown[]) {
+  saveCache(PRODUCTS_KEY, products);
+}
+
+export function getCachedProducts<T = unknown>(): T[] {
+  return loadCache<T>(PRODUCTS_KEY);
+}
+
+// ── Sales ─────────────────────────────────────────────────────
+
+export function cacheSales(sales: unknown[]) {
+  saveCache(SALES_KEY, sales);
+}
+
+export function getCachedSales<T = unknown>(): T[] {
+  return loadCache<T>(SALES_KEY);
+}
+
+// ── Stock movements ───────────────────────────────────────────
+
+export function cacheStockMovements(movements: unknown[]) {
+  saveCache(MOVEMENTS_KEY, movements);
+}
+
+export function getCachedStockMovements<T = unknown>(): T[] {
+  return loadCache<T>(MOVEMENTS_KEY);
+}
+
+// ── Low stock ─────────────────────────────────────────────────
+
+export function cacheLowStock(products: unknown[]) {
+  saveCache(LOW_STOCK_KEY, products);
+}
+
+export function getCachedLowStock<T = unknown>(): T[] {
+  return loadCache<T>(LOW_STOCK_KEY);
+}
+
+// ── Expiring ──────────────────────────────────────────────────
+
+export function cacheExpiring(products: unknown[]) {
+  saveCache(EXPIRING_KEY, products);
+}
+
+export function getCachedExpiring<T = unknown>(): T[] {
+  return loadCache<T>(EXPIRING_KEY);
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useListStockMovements,
   useListLowStockProducts,
@@ -38,10 +38,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertTriangle, Clock, Plus, ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  Clock,
+  Plus,
+  ArrowDown,
+  ArrowUp,
+  RefreshCw,
+  WifiOff,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useOnline } from "@/hooks/useOnline";
+import {
+  cacheStockMovements,
+  getCachedStockMovements,
+  cacheLowStock,
+  getCachedLowStock,
+  cacheExpiring,
+  getCachedExpiring,
+  cacheProducts,
+  getCachedProducts,
+} from "@/lib/offline-queue";
 
-const typeColors: Record<string, "default" | "destructive" | "secondary" | "outline"> = {
+const typeColors: Record<
+  string,
+  "default" | "destructive" | "secondary" | "outline"
+> = {
   IN: "default",
   OUT: "destructive",
   ADJUST: "secondary",
@@ -49,10 +71,13 @@ const typeColors: Record<string, "default" | "destructive" | "secondary" | "outl
 };
 
 export default function InventoryPage() {
-  const { data: movements } = useListStockMovements();
-  const { data: lowStock } = useListLowStockProducts();
-  const { data: expiring } = useListExpiringProducts();
-  const { data: products } = useListProducts({});
+  const isOnline = useOnline();
+
+  const { data: liveMovements } = useListStockMovements();
+  const { data: liveLowStock } = useListLowStockProducts();
+  const { data: liveExpiring } = useListExpiringProducts();
+  const { data: liveProducts } = useListProducts({});
+
   const queryClient = useQueryClient();
   const createMove = useCreateStockMovement();
 
@@ -61,6 +86,32 @@ export default function InventoryPage() {
   const [type, setType] = useState<"IN" | "OUT" | "ADJUST">("IN");
   const [quantity, setQuantity] = useState("0");
   const [note, setNote] = useState("");
+
+  // Cache fresh data to localStorage whenever we're online
+  useEffect(() => {
+    if (!isOnline) return;
+    if (liveMovements && liveMovements.length > 0) cacheStockMovements(liveMovements);
+    if (liveLowStock) cacheLowStock(liveLowStock);
+    if (liveExpiring) cacheExpiring(liveExpiring);
+    if (liveProducts && liveProducts.length > 0) cacheProducts(liveProducts);
+  }, [isOnline, liveMovements, liveLowStock, liveExpiring, liveProducts]);
+
+  // Resolve displayed data: live when online, cache when offline
+  const movements: any[] = isOnline && liveMovements
+    ? liveMovements
+    : getCachedStockMovements<any>();
+
+  const lowStock: any[] = isOnline && liveLowStock
+    ? liveLowStock
+    : getCachedLowStock<any>();
+
+  const expiring: any[] = isOnline && liveExpiring
+    ? liveExpiring
+    : getCachedExpiring<any>();
+
+  const products: any[] = isOnline && liveProducts
+    ? liveProducts
+    : getCachedProducts<any>();
 
   const submit = async () => {
     if (!productId) return;
@@ -94,29 +145,54 @@ export default function InventoryPage() {
           <h1 className="text-3xl font-bold">Inventory</h1>
           <p className="text-muted-foreground">Stock movements and alerts</p>
         </div>
-        <Button onClick={() => setOpen(true)}>
+        <Button
+          onClick={() => setOpen(true)}
+          disabled={!isOnline}
+          title={!isOnline ? "Connect to the internet to adjust stock" : undefined}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Adjust Stock
         </Button>
       </div>
+
+      {/* Offline banner */}
+      {!isOnline && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          <span>
+            You are offline. Showing the last cached inventory data. Stock adjustments
+            are disabled until you reconnect.
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <AlertTriangle className="h-4 w-4 text-destructive" />
-              Low Stock ({lowStock?.length ?? 0})
+              Low Stock ({lowStock.length})
+              {!isOnline && <Badge variant="outline" className="ml-auto text-xs">Cached</Badge>}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 max-h-64 overflow-auto">
-              {lowStock?.map((p: any) => (
-                <li key={p.id} className="flex justify-between text-sm border-b pb-2 last:border-0">
+              {lowStock.map((p: any) => (
+                <li
+                  key={p.id}
+                  className="flex justify-between text-sm border-b pb-2 last:border-0"
+                >
                   <span className="truncate pr-2">{p.name}</span>
-                  <span className="font-semibold text-destructive">{p.stockQty} / {p.reorderLevel}</span>
+                  <span className="font-semibold text-destructive">
+                    {p.stockQty} / {p.reorderLevel}
+                  </span>
                 </li>
               ))}
-              {!lowStock?.length && <li className="text-muted-foreground text-sm">All stock healthy</li>}
+              {!lowStock.length && (
+                <li className="text-muted-foreground text-sm">
+                  {isOnline ? "All stock healthy" : "No cached data"}
+                </li>
+              )}
             </ul>
           </CardContent>
         </Card>
@@ -125,18 +201,26 @@ export default function InventoryPage() {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Clock className="h-4 w-4 text-accent" />
-              Expiring Soon ({expiring?.length ?? 0})
+              Expiring Soon ({expiring.length})
+              {!isOnline && <Badge variant="outline" className="ml-auto text-xs">Cached</Badge>}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2 max-h-64 overflow-auto">
-              {expiring?.map((p: any) => (
-                <li key={p.id} className="flex justify-between text-sm border-b pb-2 last:border-0">
+              {expiring.map((p: any) => (
+                <li
+                  key={p.id}
+                  className="flex justify-between text-sm border-b pb-2 last:border-0"
+                >
                   <span className="truncate pr-2">{p.name}</span>
                   <span className="text-accent font-mono text-xs">{p.expiryDate}</span>
                 </li>
               ))}
-              {!expiring?.length && <li className="text-muted-foreground text-sm">Nothing expiring within 60 days</li>}
+              {!expiring.length && (
+                <li className="text-muted-foreground text-sm">
+                  {isOnline ? "Nothing expiring within 60 days" : "No cached data"}
+                </li>
+              )}
             </ul>
           </CardContent>
         </Card>
@@ -144,7 +228,10 @@ export default function InventoryPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Stock Movements</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Stock Movements
+            {!isOnline && <Badge variant="outline" className="text-xs">Cached</Badge>}
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -159,7 +246,7 @@ export default function InventoryPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {movements?.map((m: any) => (
+              {movements.map((m: any) => (
                 <TableRow key={m.id}>
                   <TableCell className="text-sm text-muted-foreground">
                     {new Date(m.createdAt).toLocaleString()}
@@ -168,7 +255,7 @@ export default function InventoryPage() {
                   <TableCell>
                     <Badge variant={typeColors[m.type] ?? "outline"}>
                       {m.type === "IN" && <ArrowDown className="h-3 w-3 mr-1 inline" />}
-                      {m.type === "OUT" && <ArrowUp className="h-3 w-3 mr-1 inline" />}
+                      {m.type === "OUT" && <ArrowUp className="h-3 w-3 inline mr-1" />}
                       {m.type === "ADJUST" && <RefreshCw className="h-3 w-3 mr-1 inline" />}
                       {m.type}
                     </Badge>
@@ -178,10 +265,13 @@ export default function InventoryPage() {
                   <TableCell className="text-sm">{m.userName || "—"}</TableCell>
                 </TableRow>
               ))}
-              {!movements?.length && (
+              {!movements.length && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    No movements recorded
+                  <TableCell
+                    colSpan={6}
+                    className="text-center text-muted-foreground py-8"
+                  >
+                    {isOnline ? "No movements recorded" : "No cached movements available"}
                   </TableCell>
                 </TableRow>
               )}
@@ -201,7 +291,7 @@ export default function InventoryPage() {
               <Select value={productId} onValueChange={setProductId}>
                 <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
                 <SelectContent>
-                  {products?.map((p: any) => (
+                  {products.map((p: any) => (
                     <SelectItem key={p.id} value={String(p.id)}>
                       {p.name} (stock: {p.stockQty})
                     </SelectItem>
@@ -222,16 +312,29 @@ export default function InventoryPage() {
             </div>
             <div>
               <Label>Quantity</Label>
-              <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+              <Input
+                type="number"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+              />
             </div>
             <div>
               <Label>Note</Label>
-              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. delivery from supplier" />
+              <Input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. delivery from supplier"
+              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={submit} disabled={!productId || createMove.isPending}>Save</Button>
+            <Button
+              onClick={submit}
+              disabled={!productId || createMove.isPending}
+            >
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

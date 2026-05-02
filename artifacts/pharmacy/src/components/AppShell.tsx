@@ -1,28 +1,17 @@
 import { Link, useLocation } from "wouter";
 import { LogOut, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLogout, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { InstallButton } from "./InstallButton";
 import { clearActiveOfflineUser } from "@/lib/offline-auth";
+import { useOnline } from "@/hooks/useOnline";
 
 export function AppShell({ user, children }: { user: any; children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const logout = useLogout();
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+  const isOnline = useOnline();
 
   const handleLogout = async () => {
     clearActiveOfflineUser();

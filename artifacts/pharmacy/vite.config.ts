@@ -75,14 +75,21 @@ export default defineConfig({
           {
             urlPattern: ({ url }) =>
               url.pathname.startsWith("/api/") &&
-              ["/api/products", "/api/categories", "/api/suppliers", "/api/branches", "/api/dashboard"].some(
-                (p) => url.pathname.startsWith(p),
-              ),
+              [
+                "/api/products",
+                "/api/categories",
+                "/api/suppliers",
+                "/api/branches",
+                "/api/dashboard",
+                "/api/sales",
+                "/api/stock-movements",
+                "/api/reports/closing",
+              ].some((p) => url.pathname.startsWith(p)),
             handler: "NetworkFirst",
             options: {
               cacheName: "medistock-api",
               networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
