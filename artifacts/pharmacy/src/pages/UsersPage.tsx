@@ -4,6 +4,7 @@ import {
   useCreateUser,
   useUpdateUser,
   useDeleteUser,
+  useForcePasswordReset,
   useListBranches,
   useGetMe,
   getListUsersQueryKey,
@@ -36,7 +37,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Trash2, ShieldCheck, ShieldAlert } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Plus, Trash2, ShieldCheck, ShieldAlert, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
 const roleVariants: Record<string, "default" | "destructive" | "secondary" | "outline"> = {
@@ -78,10 +84,12 @@ export default function UsersPage() {
 function AdminUsers() {
   const { data: users } = useListUsers();
   const { data: branches } = useListBranches();
+  const { data: me } = useGetMe();
   const queryClient = useQueryClient();
   const createM = useCreateUser();
   const updateM = useUpdateUser();
   const deleteM = useDeleteUser();
+  const forceResetM = useForcePasswordReset();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(empty);
 
@@ -109,6 +117,17 @@ function AdminUsers() {
     try {
       await updateM.mutateAsync({ id: u.id, data: { active: !u.active } });
       queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed");
+    }
+  };
+
+  const forceReset = async (u: any) => {
+    if (!confirm(`Require "${u.fullName}" to change their password on next login?`)) return;
+    try {
+      await forceResetM.mutateAsync({ id: u.id });
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey() });
+      toast.success(`${u.fullName} will be prompted to change their password on next login`);
     } catch (e: any) {
       toast.error(e?.message ?? "Failed");
     }
@@ -147,16 +166,31 @@ function AdminUsers() {
                 <TableHead>Role</TableHead>
                 <TableHead>Branch</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-32" />
+                <TableHead className="w-44" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {users?.map((u: any) => {
                 const branch = branches?.find((b: any) => b.id === u.branchId);
+                const isSelf = u.id === me?.id;
                 return (
                   <TableRow key={u.id}>
                     <TableCell className="font-mono text-sm">{u.username}</TableCell>
-                    <TableCell className="font-medium">{u.fullName}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {u.fullName}
+                        {u.mustResetPassword && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <KeyRound className="h-3.5 w-3.5 text-amber-500" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>Password reset required on next login</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={roleVariants[u.role] ?? "outline"}>
                         {u.role === "admin" && <ShieldCheck className="h-3 w-3 mr-1 inline" />}
@@ -171,10 +205,39 @@ function AdminUsers() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => toggleActive(u)}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => forceReset(u)}
+                              disabled={isSelf || u.mustResetPassword}
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isSelf
+                              ? "Cannot force-reset your own account"
+                              : u.mustResetPassword
+                              ? "Reset already pending"
+                              : "Force password reset on next login"}
+                          </TooltipContent>
+                        </Tooltip>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleActive(u)}
+                          disabled={isSelf}
+                        >
                           {u.active ? "Disable" : "Enable"}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => remove(u.id)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => remove(u.id)}
+                          disabled={isSelf}
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

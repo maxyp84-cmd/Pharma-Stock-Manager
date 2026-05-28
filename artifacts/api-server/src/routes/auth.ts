@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { LoginBody } from "@workspace/api-zod";
+import { LoginBody, ChangePasswordBody } from "@workspace/api-zod";
 import { db, users, branches } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import {
@@ -9,6 +9,7 @@ import {
   setSessionCookie,
   clearSessionCookie,
   verifyPassword,
+  hashPassword,
 } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -41,7 +42,31 @@ router.post("/auth/login", async (req, res) => {
     role: u.role,
     branchId: u.branchId,
     branchName,
+    mustResetPassword: u.mustResetPassword,
   });
+});
+
+router.post("/auth/change-password", async (req, res) => {
+  const auth = await loadAuth(req);
+  if (!auth) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const parsed = ChangePasswordBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input" });
+    return;
+  }
+  const [u] = await db.select().from(users).where(eq(users.id, auth.userId));
+  if (!u || !verifyPassword(parsed.data.currentPassword, u.passwordHash)) {
+    res.status(400).json({ error: "Current password is incorrect" });
+    return;
+  }
+  await db
+    .update(users)
+    .set({ passwordHash: hashPassword(parsed.data.newPassword), mustResetPassword: false })
+    .where(eq(users.id, auth.userId));
+  res.json({ ok: true });
 });
 
 router.post("/auth/logout", async (req, res) => {

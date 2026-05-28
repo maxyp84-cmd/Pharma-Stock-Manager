@@ -16,9 +16,24 @@ router.get("/users", requireAuth(["admin"]), async (_req, res) => {
       role: u.role,
       branchId: u.branchId,
       active: u.active,
+      mustResetPassword: u.mustResetPassword,
       createdAt: u.createdAt.toISOString(),
     })),
   );
+});
+
+router.post("/users/:id/force-reset", requireAuth(["admin"]), async (req, res) => {
+  const id = Number(req.params.id);
+  const [u] = await db
+    .update(users)
+    .set({ mustResetPassword: true })
+    .where(eq(users.id, id))
+    .returning();
+  if (!u) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 router.post("/users", requireAuth(["admin"]), async (req, res) => {

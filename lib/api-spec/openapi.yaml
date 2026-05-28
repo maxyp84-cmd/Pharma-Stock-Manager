@@ -45,6 +45,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuthUser"
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordBody"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
   /auth/logout:
     post:
       operationId: logout
@@ -96,6 +113,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+  /users/{id}/force-reset:
+    post:
+      operationId: forcePasswordReset
+      tags: [users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
   /users/{id}:
     patch:
       operationId: updateUser
@@ -622,6 +656,14 @@ components:
         password:
           type: string
       required: [username, password]
+    ChangePasswordBody:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+      required: [currentPassword, newPassword]
     AuthUser:
       type: object
       properties:
@@ -639,6 +681,8 @@ components:
         branchName:
           type: string
           nullable: true
+        mustResetPassword:
+          type: boolean
       required: [id, username, fullName, role]
     User:
       type: object
@@ -656,9 +700,11 @@ components:
           nullable: true
         active:
           type: boolean
+        mustResetPassword:
+          type: boolean
         createdAt:
           type: string
-      required: [id, username, fullName, role, active, createdAt]
+      required: [id, username, fullName, role, active, mustResetPassword, createdAt]
     CreateUserBody:
       type: object
       properties:

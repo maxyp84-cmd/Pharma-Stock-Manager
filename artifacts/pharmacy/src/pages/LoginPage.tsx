@@ -1,12 +1,20 @@
 import { useState } from "react";
-import { useLogin, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useLogin, useChangePassword, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { WifiOff } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { WifiOff, KeyRound } from "lucide-react";
 import {
   cacheCredentials,
   offlineLogin,
@@ -19,7 +27,13 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
+  const [resetDialog, setResetDialog] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [resetPending, setResetPending] = useState(false);
   const login = useLogin();
+  const changePassword = useChangePassword();
   const queryClient = useQueryClient();
   const [_, setLocation] = useLocation();
 
@@ -29,6 +43,12 @@ export default function LoginPage() {
     try {
       const profile = await login.mutateAsync({ data: { username, password } });
       await cacheCredentials(username, password, profile as OfflineProfile);
+      if ((profile as any).mustResetPassword) {
+        setCurrentPw(password);
+        setResetDialog(true);
+        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
       setLocation("/");
     } catch (err: any) {
@@ -47,6 +67,33 @@ export default function LoginPage() {
       }
     } finally {
       setPending(false);
+    }
+  };
+
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPw !== confirmPw) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    if (newPw.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    setResetPending(true);
+    try {
+      await changePassword.mutateAsync({ data: { currentPassword: currentPw, newPassword: newPw } });
+      toast.success("Password changed successfully. Please log in again.");
+      setResetDialog(false);
+      setCurrentPw("");
+      setNewPw("");
+      setConfirmPw("");
+      setPassword("");
+      queryClient.clear();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to change password");
+    } finally {
+      setResetPending(false);
     }
   };
 
@@ -104,6 +151,54 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+
+      <Dialog open={resetDialog} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" />
+              <DialogTitle>Change your password</DialogTitle>
+            </div>
+            <DialogDescription>
+              An administrator requires you to set a new password before continuing.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleReset} className="space-y-4 pt-2">
+            <div>
+              <Label>Current Password</Label>
+              <Input
+                type="password"
+                value={currentPw}
+                onChange={(e) => setCurrentPw(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label>Confirm New Password</Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                value={confirmPw}
+                onChange={(e) => setConfirmPw(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={resetPending}>
+              {resetPending ? "Saving…" : "Set New Password"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

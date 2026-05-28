@@ -26,6 +26,7 @@ export const users = pgTable("users", {
   role: text("role").notNull(), // 'admin' | 'manager' | 'cashier'
   branchId: integer("branch_id"),
   active: boolean("active").notNull().default(true),
+  mustResetPassword: boolean("must_reset_password").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

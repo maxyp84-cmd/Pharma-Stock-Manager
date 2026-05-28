@@ -23,6 +23,16 @@ export const LoginResponse = zod.object({
   role: zod.string(),
   branchId: zod.number().nullish(),
   branchName: zod.string().nullish(),
+  mustResetPassword: zod.boolean().optional(),
+});
+
+export const ChangePasswordBody = zod.object({
+  currentPassword: zod.string(),
+  newPassword: zod.string(),
+});
+
+export const ChangePasswordResponse = zod.object({
+  ok: zod.boolean(),
 });
 
 export const LogoutResponse = zod.object({
@@ -36,6 +46,7 @@ export const GetMeResponse = zod.object({
   role: zod.string(),
   branchId: zod.number().nullish(),
   branchName: zod.string().nullish(),
+  mustResetPassword: zod.boolean().optional(),
 });
 
 export const ListUsersResponseItem = zod.object({
@@ -45,6 +56,7 @@ export const ListUsersResponseItem = zod.object({
   role: zod.string(),
   branchId: zod.number().nullish(),
   active: zod.boolean(),
+  mustResetPassword: zod.boolean(),
   createdAt: zod.string(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
@@ -64,7 +76,16 @@ export const CreateUserResponse = zod.object({
   role: zod.string(),
   branchId: zod.number().nullish(),
   active: zod.boolean(),
+  mustResetPassword: zod.boolean(),
   createdAt: zod.string(),
+});
+
+export const ForcePasswordResetParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ForcePasswordResetResponse = zod.object({
+  ok: zod.boolean(),
 });
 
 export const UpdateUserParams = zod.object({
@@ -86,6 +107,7 @@ export const UpdateUserResponse = zod.object({
   role: zod.string(),
   branchId: zod.number().nullish(),
   active: zod.boolean(),
+  mustResetPassword: zod.boolean(),
   createdAt: zod.string(),
 });
 

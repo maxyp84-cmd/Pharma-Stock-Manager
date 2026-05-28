@@ -18,6 +18,11 @@ export interface LoginBody {
   password: string;
 }
 
+export interface ChangePasswordBody {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface AuthUser {
   id: number;
   username: string;
@@ -25,6 +30,7 @@ export interface AuthUser {
   role: string;
   branchId?: number | null;
   branchName?: string | null;
+  mustResetPassword?: boolean;
 }
 
 export interface User {
@@ -34,6 +40,7 @@ export interface User {
   role: string;
   branchId?: number | null;
   active: boolean;
+  mustResetPassword: boolean;
   createdAt: string;
 }
 
