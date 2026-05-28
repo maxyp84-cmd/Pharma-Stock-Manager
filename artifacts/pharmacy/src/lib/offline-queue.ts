@@ -131,6 +131,39 @@ export function getCachedExpiring<T = unknown>(): T[] {
   return loadCache<T>(EXPIRING_KEY);
 }
 
+// ── Dashboard summary ─────────────────────────────────────────
+
+export function cacheDashboardSummary(summary: unknown) {
+  try { localStorage.setItem("cached-dashboard-summary", JSON.stringify(summary)); } catch { /* quota */ }
+}
+
+export function getCachedDashboardSummary<T = unknown>(): T | null {
+  try {
+    const raw = localStorage.getItem("cached-dashboard-summary");
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch { return null; }
+}
+
+// ── Sales trend ───────────────────────────────────────────────
+
+export function cacheSalesTrend(trend: unknown[]) {
+  saveCache("cached-sales-trend", trend);
+}
+
+export function getCachedSalesTrend<T = unknown>(): T[] {
+  return loadCache<T>("cached-sales-trend");
+}
+
+// ── Top products ──────────────────────────────────────────────
+
+export function cacheTopProducts(products: unknown[]) {
+  saveCache("cached-top-products", products);
+}
+
+export function getCachedTopProducts<T = unknown>(): T[] {
+  return loadCache<T>("cached-top-products");
+}
+
 // ── Categories ────────────────────────────────────────────────
 
 export function cacheCategories(categories: unknown[]) {
