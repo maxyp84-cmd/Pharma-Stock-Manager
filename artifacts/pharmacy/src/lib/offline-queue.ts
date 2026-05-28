@@ -4,6 +4,9 @@ const SALES_KEY = "cached-sales";
 const MOVEMENTS_KEY = "cached-stock-movements";
 const LOW_STOCK_KEY = "cached-low-stock";
 const EXPIRING_KEY = "cached-expiring";
+const CATEGORIES_KEY = "cached-categories";
+const SUPPLIERS_KEY = "cached-suppliers";
+const BRANCHES_KEY = "cached-branches";
 
 export interface OfflineSalePayload {
   items: { productId: number; quantity: number; unitPrice: number }[];
@@ -126,4 +129,34 @@ export function cacheExpiring(products: unknown[]) {
 
 export function getCachedExpiring<T = unknown>(): T[] {
   return loadCache<T>(EXPIRING_KEY);
+}
+
+// ── Categories ────────────────────────────────────────────────
+
+export function cacheCategories(categories: unknown[]) {
+  saveCache(CATEGORIES_KEY, categories);
+}
+
+export function getCachedCategories<T = unknown>(): T[] {
+  return loadCache<T>(CATEGORIES_KEY);
+}
+
+// ── Suppliers ─────────────────────────────────────────────────
+
+export function cacheSuppliers(suppliers: unknown[]) {
+  saveCache(SUPPLIERS_KEY, suppliers);
+}
+
+export function getCachedSuppliers<T = unknown>(): T[] {
+  return loadCache<T>(SUPPLIERS_KEY);
+}
+
+// ── Branches ──────────────────────────────────────────────────
+
+export function cacheBranches(branches: unknown[]) {
+  saveCache(BRANCHES_KEY, branches);
+}
+
+export function getCachedBranches<T = unknown>(): T[] {
+  return loadCache<T>(BRANCHES_KEY);
 }

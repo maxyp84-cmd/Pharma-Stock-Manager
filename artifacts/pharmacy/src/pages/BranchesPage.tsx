@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useListBranches,
   useCreateBranch,
@@ -26,13 +26,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Store } from "lucide-react";
+import { Plus, Pencil, Trash2, Store, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+import { useOnline } from "@/hooks/useOnline";
+import { cacheBranches, getCachedBranches } from "@/lib/offline-queue";
 
 const empty = { name: "", address: "", phone: "" };
 
 export default function BranchesPage() {
-  const { data: branches } = useListBranches();
+  const isOnline = useOnline();
+  const { data: liveBranches } = useListBranches();
   const queryClient = useQueryClient();
   const createM = useCreateBranch();
   const updateM = useUpdateBranch();
@@ -40,6 +43,12 @@ export default function BranchesPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(empty);
+
+  useEffect(() => {
+    if (isOnline && liveBranches?.length) cacheBranches(liveBranches);
+  }, [isOnline, liveBranches]);
+
+  const branches = liveBranches ?? (isOnline ? [] : getCachedBranches<any>());
 
   const submit = async () => {
     try {
@@ -72,12 +81,25 @@ export default function BranchesPage() {
 
   return (
     <div className="space-y-6">
+      {!isOnline && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          <span>You are offline — showing cached branch data. Changes are disabled until reconnected.</span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Branches</h1>
-          <p className="text-muted-foreground">{branches?.length ?? 0} pharmacy locations</p>
+          <p className="text-muted-foreground">
+            {branches?.length ?? 0} pharmacy locations
+            {!isOnline && <span className="ml-2 text-amber-600">(cached)</span>}
+          </p>
         </div>
-        <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }}>
+        <Button
+          onClick={() => { setEditId(null); setForm(empty); setOpen(true); }}
+          disabled={!isOnline}
+        >
           <Plus className="h-4 w-4 mr-2" />Add Branch
         </Button>
       </div>
@@ -106,20 +128,32 @@ export default function BranchesPage() {
                   <TableCell className="font-mono text-sm">{b.phone || "—"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => {
-                        setEditId(b.id);
-                        setForm({ name: b.name ?? "", address: b.address ?? "", phone: b.phone ?? "" });
-                        setOpen(true);
-                      }}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={!isOnline}
+                        onClick={() => {
+                          setEditId(b.id);
+                          setForm({ name: b.name ?? "", address: b.address ?? "", phone: b.phone ?? "" });
+                          setOpen(true);
+                        }}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => remove(b.id)}>
+                      <Button variant="ghost" size="icon" disabled={!isOnline} onClick={() => remove(b.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
+              {!branches?.length && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                    {isOnline ? "No branches" : "No cached branches available"}
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

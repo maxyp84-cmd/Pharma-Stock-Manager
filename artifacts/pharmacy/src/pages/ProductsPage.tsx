@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useListProducts,
   useCreateProduct,
@@ -8,6 +8,7 @@ import {
   useListSuppliers,
   useListBranches,
   getListProductsQueryKey,
+  useGetMe,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,7 +20,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -38,10 +38,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, WifiOff } from "lucide-react";
 import { formatGHS } from "@/lib/currency";
 import { toast } from "sonner";
-import { useGetMe } from "@workspace/api-client-react";
+import { useOnline } from "@/hooks/useOnline";
+import {
+  cacheProducts,
+  getCachedProducts,
+  cacheCategories,
+  getCachedCategories,
+  cacheSuppliers,
+  getCachedSuppliers,
+  cacheBranches,
+  getCachedBranches,
+} from "@/lib/offline-queue";
 
 interface ProductForm {
   name: string;
@@ -89,13 +99,44 @@ function expiryStatus(date: string | null | undefined) {
 
 export default function ProductsPage() {
   const { data: me } = useGetMe();
-  const canEdit = me?.role === "admin" || me?.role === "manager";
+  const isOnline = useOnline();
+  const canEdit = (me?.role === "admin" || me?.role === "manager") && isOnline;
   const [search, setSearch] = useState("");
-  const { data: products } = useListProducts({ search: search || undefined });
-  const { data: categories } = useListCategories();
-  const { data: suppliers } = useListSuppliers();
-  const { data: branches } = useListBranches();
+
+  const { data: liveProducts } = useListProducts({ search: search || undefined });
+  const { data: liveCategories } = useListCategories();
+  const { data: liveSuppliers } = useListSuppliers();
+  const { data: liveBranches } = useListBranches();
+
   const queryClient = useQueryClient();
+
+  // Cache when online
+  useEffect(() => {
+    if (isOnline && liveProducts?.length) cacheProducts(liveProducts);
+  }, [isOnline, liveProducts]);
+  useEffect(() => {
+    if (isOnline && liveCategories?.length) cacheCategories(liveCategories);
+  }, [isOnline, liveCategories]);
+  useEffect(() => {
+    if (isOnline && liveSuppliers?.length) cacheSuppliers(liveSuppliers);
+  }, [isOnline, liveSuppliers]);
+  useEffect(() => {
+    if (isOnline && liveBranches?.length) cacheBranches(liveBranches);
+  }, [isOnline, liveBranches]);
+
+  const products = liveProducts ?? (isOnline ? [] : getCachedProducts<any>());
+  const categories = liveCategories ?? (isOnline ? [] : getCachedCategories<any>());
+  const suppliers = liveSuppliers ?? (isOnline ? [] : getCachedSuppliers<any>());
+  const branches = liveBranches ?? (isOnline ? [] : getCachedBranches<any>());
+
+  // Filter cached products by search term when offline
+  const displayProducts = !isOnline && search
+    ? products.filter((p: any) =>
+        p.name?.toLowerCase().includes(search.toLowerCase()) ||
+        p.barcode?.toLowerCase().includes(search.toLowerCase()) ||
+        p.sku?.toLowerCase().includes(search.toLowerCase())
+      )
+    : products;
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -177,15 +218,23 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
+      {!isOnline && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          <span>You are offline — showing cached product data. Add / edit / delete is disabled until reconnected.</span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Products</h1>
           <p className="text-muted-foreground">
-            {products?.length ?? 0} products in inventory
+            {displayProducts?.length ?? 0} products in inventory
+            {!isOnline && <span className="ml-2 text-amber-600">(cached)</span>}
           </p>
         </div>
-        {canEdit && (
-          <Button onClick={openNew}>
+        {(me?.role === "admin" || me?.role === "manager") && (
+          <Button onClick={openNew} disabled={!isOnline}>
             <Plus className="h-4 w-4 mr-2" />
             Add Product
           </Button>
@@ -222,7 +271,7 @@ export default function ProductsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products?.map((p: any) => {
+              {displayProducts?.map((p: any) => {
                 const low = p.stockQty <= p.reorderLevel;
                 const exp = expiryStatus(p.expiryDate);
                 return (
@@ -259,10 +308,10 @@ export default function ProductsPage() {
                   </TableRow>
                 );
               })}
-              {!products?.length && (
+              {!displayProducts?.length && (
                 <TableRow>
                   <TableCell colSpan={canEdit ? 8 : 7} className="text-center text-muted-foreground py-8">
-                    No products found
+                    {isOnline ? "No products found" : "No cached products available"}
                   </TableCell>
                 </TableRow>
               )}

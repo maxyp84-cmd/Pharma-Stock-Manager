@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useListSuppliers,
   useCreateSupplier,
@@ -26,13 +26,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, WifiOff } from "lucide-react";
 import { toast } from "sonner";
+import { useOnline } from "@/hooks/useOnline";
+import { cacheSuppliers, getCachedSuppliers } from "@/lib/offline-queue";
 
 const empty = { name: "", contactName: "", phone: "", email: "", address: "" };
 
 export default function SuppliersPage() {
-  const { data: suppliers } = useListSuppliers();
+  const isOnline = useOnline();
+  const { data: liveSuppliers } = useListSuppliers();
   const queryClient = useQueryClient();
   const createM = useCreateSupplier();
   const updateM = useUpdateSupplier();
@@ -40,6 +43,12 @@ export default function SuppliersPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(empty);
+
+  useEffect(() => {
+    if (isOnline && liveSuppliers?.length) cacheSuppliers(liveSuppliers);
+  }, [isOnline, liveSuppliers]);
+
+  const suppliers = liveSuppliers ?? (isOnline ? [] : getCachedSuppliers<any>());
 
   const submit = async () => {
     try {
@@ -72,12 +81,25 @@ export default function SuppliersPage() {
 
   return (
     <div className="space-y-6">
+      {!isOnline && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          <span>You are offline — showing cached supplier data. Changes are disabled until reconnected.</span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Suppliers</h1>
-          <p className="text-muted-foreground">{suppliers?.length ?? 0} active suppliers</p>
+          <p className="text-muted-foreground">
+            {suppliers?.length ?? 0} active suppliers
+            {!isOnline && <span className="ml-2 text-amber-600">(cached)</span>}
+          </p>
         </div>
-        <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }}>
+        <Button
+          onClick={() => { setEditId(null); setForm(empty); setOpen(true); }}
+          disabled={!isOnline}
+        >
           <Plus className="h-4 w-4 mr-2" />Add Supplier
         </Button>
       </div>
@@ -105,20 +127,25 @@ export default function SuppliersPage() {
                   <TableCell className="text-sm text-muted-foreground">{s.address || "—"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => {
-                        setEditId(s.id);
-                        setForm({
-                          name: s.name ?? "",
-                          contactName: s.contactName ?? "",
-                          phone: s.phone ?? "",
-                          email: s.email ?? "",
-                          address: s.address ?? "",
-                        });
-                        setOpen(true);
-                      }}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        disabled={!isOnline}
+                        onClick={() => {
+                          setEditId(s.id);
+                          setForm({
+                            name: s.name ?? "",
+                            contactName: s.contactName ?? "",
+                            phone: s.phone ?? "",
+                            email: s.email ?? "",
+                            address: s.address ?? "",
+                          });
+                          setOpen(true);
+                        }}
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => remove(s.id)}>
+                      <Button variant="ghost" size="icon" disabled={!isOnline} onClick={() => remove(s.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -126,7 +153,11 @@ export default function SuppliersPage() {
                 </TableRow>
               ))}
               {!suppliers?.length && (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No suppliers</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    {isOnline ? "No suppliers" : "No cached suppliers available"}
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
